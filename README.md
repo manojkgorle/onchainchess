@@ -9,6 +9,13 @@ Foundry consists of:
 -   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
 -   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
 
+## Woke import remappings
+
+Command Pallet
+```
+ Tools for Solidity: Import Foundry Remappings
+```
+
 ## Documentation
 
 https://book.getfoundry.sh/
