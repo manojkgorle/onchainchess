@@ -1,69 +1,50 @@
 //SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.0;
 
 //@todo for now create a workable model, later we may convert it to a library. & add multi game support
 //@todo target 1: workable chessboard with all correct logic (no bugs)
 //@todo target 2: reusable 8x8 module & gas optimisation
-//@todo target 3: Chess engine
+//@todo target 3: Chess engine --> in rust lang
 
-//@dev inspired from fiveoutofnine/fiveoutofnine-chess
-library ChessGame {
-    // start board position
-    // white on top, black on bottom. key starts from 0 lasts to 63. 8x8 chess board
+/// @title 8-by-8 Chess board, with gas optimisations
+/// @author manojkgorle
+/// @notice Chess board libray to validate & apply moves of a chess game.
 
-    // 00110100001001100101001001000011
-    // 00010001000100010001000100010001
-    // 00000000000000000000000000000000
-    // 00000000000000000000000000000000
-    // 00000000000000000000000000000000
-    // 00000000000000000000000000000000
-    // 10011001100110011001100110011001
-    // 10111100101011101101101011001011
-
-    // 0011010000100110010100100100001100010001000100010001000100010001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001001100110011001100110011001100110111100101011101101101011001011
-    // decimal representation of board
-    // 23587976066105624102652026731540702020911522231275872573279604863738831624907
-    // core var
-    // uint256 public board = 0x34265243111111110000000000000000000000000000000099999999BCAEDACB;
-
-    function makeMove(uint256 move) public returns (bool) {}
-
-    /// @notice Check if a move is legal.
-    /// @dev Explain to a developer any extra details
-    /// @param  move, is bit packed with 6bits representing from & to positon each
-    /// @return Documents the return variables of a contract’s function state variable
+library ChessBoard {
+    /// @notice Checks, if a move is legal.
+    /// @param board, is bit packed with 4 bits representing a piece.
+    /// @param  move, is bit packed with 6 bits representing from & to positon each.
+    /// @return true if a legal move.
 
     function isLegalMove(
         uint256 board,
         uint256 move
     ) internal pure returns (bool) {
-        // get piece
         uint256 fromIndex = move >> 6;
-        uint256 toIndex = move & 0x3F; // try arranging at the appropriate place
-        // the piece at from index
+        uint256 toIndex = move & 0x3F;
+
         uint256 pieceAtFromIndex = (board >> ((fromIndex) << 2)) & 0xF;
-        // index change
+
         uint256 indexChange = fromIndex > toIndex
             ? fromIndex - toIndex
             : toIndex - fromIndex;
-        // get row & column
+
         if (indexChange == 0) return false;
+
         uint256 row = fromIndex / 8 + 1;
         uint256 column = (fromIndex % 8) + 1;
-        // get color
+
         uint256 pieceAtToIndex = (board >> (toIndex << 2)) & 0xF;
+
+        // checks weather a piece is present at to index
         bool toIndexPiecePresent = pieceAtToIndex != 0 ? true : false;
-        if (pieceAtToIndex != 0 && pieceAtToIndex >> 3 == pieceAtFromIndex >> 3)
-            return false; // if there is a piece at toIndex, check if the piece is of same color with piece at fromIndex
 
-        // get valid diff
-        // check if on edges: call a internal function which returns a bool, along side with the edge details
-        //@todo below implementatin seems flawed. as it is not presenting the exact data. We need to rewrite isOnEdge to return data in detail
+        // checks weather piece at from & to index are of same color
+        if (toIndexPiecePresent && pieceAtToIndex >> 3 == pieceAtFromIndex >> 3)
+            return false;
 
-        // edge case not auto validated sceneraios
-
-        // @todo pawn
+        // @todo Pawn validation
         if (pieceAtFromIndex & 7 == 1) {
             //black or white pawn --> a pawn
 
@@ -81,62 +62,73 @@ library ChessGame {
                 return toIndexPiecePresent ? true : false;
         }
 
-        // @todo knight
+        // @todo Knight validation
         if (pieceAtFromIndex & 7 == 4) {
-            // @todo for knight the 2 margin rule
-            // the corners
-            if (
-                (((row == 1 && column == 1) || (row == 1 && column == 8)) &&
-                    toIndex > fromIndex) ||
-                (((row == 8 && column == 1) || (row == 8 && column == 8)) &&
-                    toIndex < fromIndex)
-            ) return (0x810000 >> indexChange) & 1 == 1 ? true : false; // consider case of hardcoding the place values instead of performing multiple checks
-            // for row 2 & 7
-            if (
-                (((row == 1 && column == 2) || (row == 1 && column == 7)) &&
-                    toIndex > fromIndex) ||
-                (((row == 8 && column == 2) || (row == 8 && column == 7)) &&
-                    toIndex < fromIndex)
-            ) return (0xA1000 >> indexChange) & 1 == 1 ? true : false;
-            //@todo
-            // 2 row 2 col things left
-            // gen 2 col 2 row things left
-            if (row == 1)
-                // for column 2 & 7
-                // for row 1 & 8
-                return
-                    toIndex > fromIndex
-                        ? (0x28440 >> indexChange) & 1 == 1 ? true : false
-                        : false;
-            if (row == 8)
-                return
-                    toIndex < fromIndex
-                        ? (0x28440 >> indexChange) & 1 == 1 ? true : false
-                        : false;
-            // for column 1 & column 8
-            if (column == 1 || column == 8)
-                return (0x8040 >> indexChange) & 1 == 1 ? true : false;
+            // @todo for knight, margin is 2 unlike others.
 
-            return (0x28440 >> indexChange) & 1 == 1 ? true : false;
+            // 101000010001000000_0_000000100010000101 (indexChange > 0)_0_(indexChange < 0)
+            if (indexChange < 18) {
+                uint256 knightLegalMoves = 0x1010000100010000000000000100010000101;
+                // knightLegalMoves = (knightLegalMoves >> 18 ) << 18;
+                // The above implementation is ignored to enable standardisation for 7 & 8 row & column
+                if (row == 1) {
+                    knightLegalMoves &= 0x1010000100010000000000000000000000000;
+                } else if (row == 2) {
+                    knightLegalMoves &= 0x1010000100010000000000000100010000000;
+                } else if (row == 7) {
+                    knightLegalMoves &= 0x0000000100010000000000000100010000101;
+                } else if (row == 8) {
+                    knightLegalMoves &= 0x0000000000000000000000000100010000101;
+                }
+
+                if (column == 1) {
+                    knightLegalMoves &= 0x1000000100000000000000000100000000100;
+                } else if (column == 2) {
+                    knightLegalMoves &= 0x1010000100000000000000000100000000101;
+                } else if (column == 7) {
+                    knightLegalMoves &= 0x1010000000010000000000000000010000101;
+                } else if (column == 8) {
+                    knightLegalMoves &= 0x0010000000010000000000000000010000001;
+                }
+
+                return
+                    fromIndex > toIndex
+                        ? (((knightLegalMoves & 0x111111111111111111) >>
+                            indexChange) &
+                            1 ==
+                            1)
+                            ? true
+                            : false
+                        : ((knightLegalMoves >> (19 + indexChange)) & 1) == 1
+                        ? true
+                        : false;
+            }
+
+            return false;
         }
 
-        // @todo king
+        // @todo King
         if (pieceAtFromIndex & 7 == 6) {
             bool topOrBottom;
             bool leftOrRight;
             bool isTop;
             bool isLeft;
-            // bool check
+
+            // @todo king has a very different approach, for edge & corner cases.
+
             if (row == 1 || row == 8) topOrBottom = true;
             if (column == 1 || column == 8) leftOrRight = true;
             if (row == 1) isTop = true;
             if (column == 1) isLeft = true;
-            // bool check done
-            //non boundary case
+
+            // @todo non boundary condition
             if (!topOrBottom && !leftOrRight)
                 return (0x382 >> indexChange) & 1 == 1 ? true : false;
-            //code for boundary condition
+
+            // @todo boundary conditions
+
             if (topOrBottom && leftOrRight) {
+                // @todo corner conditions
                 if (isTop && isLeft && toIndex > fromIndex)
                     return (0xC002 >> indexChange) & 1 == 1 ? true : false;
                 if (isTop && !isLeft && toIndex > fromIndex)
@@ -184,7 +176,7 @@ library ChessGame {
             return false;
         }
 
-        // @todo rook
+        // @todo Rook
         if (pieceAtFromIndex & 7 == 3) {
             if ((row - 1) * 8 - 1 <= toIndex && toIndex <= (row) * 8 - 1)
                 return true;
@@ -197,7 +189,8 @@ library ChessGame {
 
             return false;
         }
-        // @todo bishop
+
+        // @todo Bishop
         if (pieceAtFromIndex & 7 == 2) {
             if (indexChange % 7 == 0) {
                 if (toIndex <= fromIndex) {
@@ -220,9 +213,10 @@ library ChessGame {
             }
             return false;
         }
-        // @todo queen = bishop + rook
+
+        // @todo Queen, condtions for Queen = Rook + Bishop
         if (pieceAtFromIndex & 7 == 5) {
-            // rooks code of validation
+            // Rooks code of validation
             if ((row - 1) * 8 - 1 <= toIndex && toIndex <= (row) * 8 - 1)
                 return true;
 
@@ -232,7 +226,7 @@ library ChessGame {
                 indexChange % 8 == 0
             ) return true;
 
-            // bishops code of validation
+            // Bishops code of validation
             if (indexChange % 7 == 0) {
                 if (toIndex <= fromIndex) {
                     uint256 maxL = row <= 9 - column ? row - 1 : 8 - column;
@@ -258,33 +252,20 @@ library ChessGame {
     }
 
     function applyMove(
-        uint256 _board,
-        uint256 _move
+        uint256 board,
+        uint256 move
     ) internal pure returns (uint256) {
         unchecked {
-            // Get piece at the from index
-            uint256 piece = (_board >> ((_move >> 6) << 2)) & 0xF;
+            // Piece at the from index
+            uint256 piece = (board >> ((move >> 6) << 2)) & 0xF;
             // Replace 4 bits at the from index with 0000
-            _board &= type(uint256).max ^ (0xF << ((_move >> 6) << 2));
+            board &= type(uint256).max ^ (0xF << ((move >> 6) << 2));
             // Replace 4 bits at the to index with 0000
-            _board &= type(uint256).max ^ (0xF << ((_move & 0x3F) << 2));
+            board &= type(uint256).max ^ (0xF << ((move & 0x3F) << 2));
             // Place the piece at the to index
-            _board |= (piece << ((_move & 0x3F) << 2));
+            board |= (piece << ((move & 0x3F) << 2));
 
-            return _board;
+            return board;
         }
     }
-
-    function isCapture() internal {}
-
-    function swapPawn(
-        uint256 fromIndex,
-        uint256 toIndex,
-        uint256 indexChange,
-        bool toIndexPiecePresent,
-        bool isTop
-    ) internal pure returns (bool) {}
-
-    //@todo try developing many functions as pure & only applyMove as stateChanging function; we validate things off chain & later update on chain. But we need to have checks induced;
-    //@todo convert pieceAtFromIndex to a var & reuse the variable
 }

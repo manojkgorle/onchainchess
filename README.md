@@ -1,3 +1,10 @@
+## Roadmap
+
+- **8x8 Chess Smart contract library** ✅
+- **Rust server for connecting smartcontracts & backend** 
+- **Front end supporting Account abstraction** 
+
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
