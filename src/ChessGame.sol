@@ -8,6 +8,8 @@ contract ChessGame {
     using ChessBoard for uint256;
 
     // start board position
+
+    // white -> 0 & black -> 1
     // white on top, black on bottom. key starts from 0 lasts to 63. 8x8 chess board
 
     // 00110100001001100101001001000011
@@ -22,6 +24,7 @@ contract ChessGame {
     // 0011010000100110010100100100001100010001000100010001000100010001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001001100110011001100110011001100110111100101011101101101011001011
     // decimal representation of board
     // 23587976066105624102652026731540702020911522231275872573279604863738831624907
+
     uint256 public board =
         0x34265243111111110000000000000000000000000000000099999999BCAEDACB;
     uint256[6] public pastMoves = [0, 0, 0, 0, 0, 0];
@@ -33,6 +36,7 @@ contract ChessGame {
         bool turn;
         uint256[6] pastMoves;
         uint256 stakeAmount;
+        address winner;
     }
     gameData[] public allGames;
     mapping(uint256 => bool) public gameStatus;
@@ -44,11 +48,21 @@ contract ChessGame {
         uint256 stakeAmount
     );
 
+    event gameEnded(uint256 gameId, uint256 finalBoard, address winner);
+
     event moveApplied(uint256 gameId, bool turn, uint256 move);
 
     function startGame(address _player1) public payable {
         allGames.push(
-            gameData(board, msg.sender, _player1, false, pastMoves, msg.value)
+            gameData(
+                board,
+                msg.sender,
+                _player1,
+                false,
+                pastMoves,
+                msg.value,
+                address(0)
+            )
         );
         emit gameStarted(allGames.length, msg.sender, _player1, msg.value);
     }
@@ -81,6 +95,7 @@ contract ChessGame {
                         emit moveApplied(gameId, turn, _move);
 
                         allGames[gameId].turn = !turn;
+                        //@todo push to past moves or keep track offline via events
                         return true;
                     }
                 }
@@ -89,10 +104,46 @@ contract ChessGame {
         return false;
     }
 
-    function endGame() public {
-        // @todo validate all the cases of endgame
-        // User withdrawl, or user mutual agree to draw
-        // checkmate. i.e. king is not on the board.
-        // do something creative on the server side, to auto kill the checkmated king. i.e by submitting the tx automatically.
+    /// @notice ends game.
+    /// @param _condition 0 withdraw 1 draw 2 win
+    /// endGame cases:
+    /// player withdraws -> called by withdrawee
+    /// game draws --> called by contract owner / server
+    /// game won --> called by any
+    function endGame(uint8 _condition, uint256 gameId) public returns (bool) {
+        // @todo do something creative on the server side, to auto kill the checkmated king. i.e by submitting the tx automatically.
+        gameData memory currentGameData = allGames[gameId];
+        address player0 = currentGameData.player0;
+        address player1 = currentGameData.player1;
+        require(player0 == msg.sender || player1 == msg.sender, "Not a player");
+        if (_condition == 0) {
+            address winner = player0 == msg.sender ? player1 : player0;
+            allGames[gameId].winner = winner;
+            emit gameEnded(gameId, currentGameData.board, winner);
+            return true;
+        } else if (_condition == 1) {
+            allGames[gameId].winner = address(1);
+            emit gameEnded(gameId, currentGameData.board, address(1));
+            return true;
+        } else if (_condition == 2) {
+            /// @dev will check through board for king piece, if king is absent, the winner will be declared
+            // @todo this is gonna be a gas intensive function
+            uint256 inMemoryBoard = currentGameData.board;
+            bool isWhiteKingPresent;
+            bool isBlackKingPresent;
+            for (uint8 i = 0; i < 64; i++) {
+                uint256 pieceAtIndex = (inMemoryBoard >> ((i) << 2)) & 0xf;
+                if (pieceAtIndex == 0x0110) isWhiteKingPresent = true;
+                if (pieceAtIndex == 0x1110) isBlackKingPresent = true;
+            }
+            if (isWhiteKingPresent && isBlackKingPresent) {
+                return false;
+            } else {
+                address winner = isWhiteKingPresent ? player0 : player1;
+                emit gameEnded(gameId, currentGameData.board, winner);
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -2,11 +2,8 @@
 
 pragma solidity ^0.8.0;
 
-//@todo for now create a workable model, later we may convert it to a library. & add multi game support
-//@todo target 1: workable chessboard with all correct logic (no bugs)
-//@todo target 2: reusable 8x8 module & gas optimisation
 //@todo target 3: Chess engine --> in rust lang
-
+//@todo target 4: zk implemetation to prove the current state of board is a result of the moves made which are captured using events offchain
 /// @title 8-by-8 Chess board, with gas optimisations
 /// @author manojkgorle
 /// @notice Chess board libray to validate & apply moves of a chess game.
@@ -24,7 +21,10 @@ library ChessBoard {
         uint256 fromIndex = move >> 6;
         uint256 toIndex = move & 0x3F;
 
-        uint256 pieceAtFromIndex = (board >> ((fromIndex) << 2)) & 0xF;
+        // @todo needs testing, this logic says the right most bit as 0th bit
+        // fixed by changing fromIndex to 63 - fromIndex
+
+        uint256 pieceAtFromIndex = (board >> ((63 - fromIndex) << 2)) & 0xF;
 
         uint256 indexChange = fromIndex > toIndex
             ? fromIndex - toIndex
@@ -35,9 +35,8 @@ library ChessBoard {
         uint256 row = fromIndex / 8 + 1;
         uint256 column = (fromIndex % 8) + 1;
 
-        uint256 pieceAtToIndex = (board >> (toIndex << 2)) & 0xF;
+        uint256 pieceAtToIndex = (board >> ((63 - toIndex) << 2)) & 0xF;
 
-        // checks weather a piece is present at to index
         bool toIndexPiecePresent = pieceAtToIndex != 0 ? true : false;
 
         // checks weather piece at from & to index are of same color
@@ -68,32 +67,32 @@ library ChessBoard {
 
             // 101000010001000000_0_000000100010000101 (indexChange > 0)_0_(indexChange < 0)
             if (indexChange < 18) {
-                uint256 knightLegalMoves = 0x1010000100010000000000000100010000101;
+                uint256 knightLegalMoves = 22387857567540400775339812458057924593320193;
                 // knightLegalMoves = (knightLegalMoves >> 18 ) << 18;
                 // The above implementation is ignored to enable standardisation for 7 & 8 row & column
                 if (row == 1) {
-                    knightLegalMoves &= 0x1010000100010000000000000000000000000;
+                    knightLegalMoves &= 22387857567540400775339812458040332138840064;
                 } else if (row == 2) {
-                    knightLegalMoves &= 0x1010000100010000000000000100010000000;
+                    knightLegalMoves &= 22387857567540400775339812458057924593319936;
                 } else if (row == 7) {
-                    knightLegalMoves &= 0x0000000100010000000000000100010000101;
+                    knightLegalMoves &= 83078017387157470285907030425207041;
                 } else if (row == 8) {
-                    knightLegalMoves &= 0x0000000000000000000000000100010000101;
+                    knightLegalMoves &= 17592454480129;
                 }
 
                 if (column == 1) {
-                    knightLegalMoves &= 0x1000000100000000000000000100000000100;
+                    knightLegalMoves &= 22300745281607372878092960329153894959546624;
                 } else if (column == 2) {
-                    knightLegalMoves &= 0x1010000100000000000000000100000000101;
+                    knightLegalMoves &= 22387857567539133124739584228656427621679361;
                 } else if (column == 7) {
-                    knightLegalMoves &= 0x1010000000010000000000000000010000101;
+                    knightLegalMoves &= 22387857484463651038782570401552391139754241;
                 } else if (column == 8) {
-                    knightLegalMoves &= 0x0010000000010000000000000000010000001;
+                    knightLegalMoves &= 87112285933027897246852128904029633773569;
                 }
 
                 return
                     fromIndex > toIndex
-                        ? (((knightLegalMoves & 0x111111111111111111) >>
+                        ? (((knightLegalMoves & 314824432191309680913) >>
                             indexChange) &
                             1 ==
                             1)
@@ -257,13 +256,13 @@ library ChessBoard {
     ) internal pure returns (uint256) {
         unchecked {
             // Piece at the from index
-            uint256 piece = (board >> ((move >> 6) << 2)) & 0xF;
+            uint256 piece = (board >> ((63 - (move >> 6)) << 2)) & 0xF;
             // Replace 4 bits at the from index with 0000
-            board &= type(uint256).max ^ (0xF << ((move >> 6) << 2));
+            board &= type(uint256).max ^ (0xF << ((63 - (move >> 6)) << 2));
             // Replace 4 bits at the to index with 0000
-            board &= type(uint256).max ^ (0xF << ((move & 0x3F) << 2));
+            board &= type(uint256).max ^ (0xF << ((63 - (move & 0x3F)) << 2));
             // Place the piece at the to index
-            board |= (piece << ((move & 0x3F) << 2));
+            board |= (piece << ((63 - (move & 0x3F)) << 2));
 
             return board;
         }
