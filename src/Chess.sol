@@ -67,34 +67,32 @@ library ChessBoard {
 
             // 101000010001000000_0_000000100010000101 (indexChange > 0)_0_(indexChange < 0)
             if (indexChange < 18) {
-                uint256 knightLegalMoves = 22387857567540400775339812458057924593320193;
+                uint256 knightLegalMoves = 86469773445;
                 // knightLegalMoves = (knightLegalMoves >> 18 ) << 18;
                 // The above implementation is ignored to enable standardisation for 7 & 8 row & column
                 if (row == 1) {
-                    knightLegalMoves &= 22387857567540400775339812458040332138840064;
+                    knightLegalMoves &= 86469771264;
                 } else if (row == 2) {
-                    knightLegalMoves &= 22387857567540400775339812458057924593319936;
+                    knightLegalMoves &= 86469773440;
                 } else if (row == 7) {
-                    knightLegalMoves &= 83078017387157470285907030425207041;
+                    knightLegalMoves &= 570427525;
                 } else if (row == 8) {
-                    knightLegalMoves &= 17592454480129;
+                    knightLegalMoves &= 2181;
                 }
 
                 if (column == 1) {
-                    knightLegalMoves &= 22300745281607372878092960329153894959546624;
+                    knightLegalMoves &= 69256349700;
                 } else if (column == 2) {
-                    knightLegalMoves &= 22387857567539133124739584228656427621679361;
+                    knightLegalMoves &= 86436218885;
                 } else if (column == 7) {
-                    knightLegalMoves &= 22387857484463651038782570401552391139754241;
+                    knightLegalMoves &= 85932900485;
                 } else if (column == 8) {
-                    knightLegalMoves &= 87112285933027897246852128904029633773569;
+                    knightLegalMoves &= 17213423745;
                 }
 
                 return
                     fromIndex > toIndex
-                        ? (((knightLegalMoves & 314824432191309680913) >>
-                            indexChange) &
-                            1 ==
+                        ? (((knightLegalMoves & 262143) >> indexChange) & 1 ==
                             1)
                             ? true
                             : false
@@ -265,6 +263,19 @@ library ChessBoard {
             board |= (piece << ((63 - (move & 0x3F)) << 2));
 
             return board;
+        }
+    }
+
+    /// @notice Explore the board to find the presence of both the kings.
+    /// @dev implement necessary checks.
+
+    function isMate(
+        uint256 board
+    ) internal pure returns (bool isWhiteKingPresent, bool isBlackKingPresent) {
+        for (uint8 i = 0; i < 64; i++) {
+            uint256 pieceAtIndex = (board >> ((i) << 2)) & 0xf;
+            if (pieceAtIndex == 0x0110) isWhiteKingPresent = true;
+            if (pieceAtIndex == 0x1110) isBlackKingPresent = true;
         }
     }
 }

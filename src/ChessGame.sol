@@ -64,7 +64,7 @@ contract ChessGame {
                 address(0)
             )
         );
-        emit gameStarted(allGames.length, msg.sender, _player1, msg.value);
+        emit gameStarted(allGames.length - 1, msg.sender, _player1, msg.value);
     }
 
     function move(
@@ -127,15 +127,9 @@ contract ChessGame {
             return true;
         } else if (_condition == 2) {
             /// @dev will check through board for king piece, if king is absent, the winner will be declared
-            // @todo this is gonna be a gas intensive function
-            uint256 inMemoryBoard = currentGameData.board;
-            bool isWhiteKingPresent;
-            bool isBlackKingPresent;
-            for (uint8 i = 0; i < 64; i++) {
-                uint256 pieceAtIndex = (inMemoryBoard >> ((i) << 2)) & 0xf;
-                if (pieceAtIndex == 0x0110) isWhiteKingPresent = true;
-                if (pieceAtIndex == 0x1110) isBlackKingPresent = true;
-            }
+            (bool isWhiteKingPresent, bool isBlackKingPresent) = currentGameData
+                .board
+                .isMate();
             if (isWhiteKingPresent && isBlackKingPresent) {
                 return false;
             } else {
