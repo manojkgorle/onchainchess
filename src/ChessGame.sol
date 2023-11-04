@@ -10,16 +10,6 @@ contract ChessGame {
     // start board position
 
     // white -> 0 & black -> 1
-    // white on top, black on bottom. key starts from 0 lasts to 63. 8x8 chess board
-
-    // 00110100001001100101001001000011
-    // 00010001000100010001000100010001
-    // 00000000000000000000000000000000
-    // 00000000000000000000000000000000
-    // 00000000000000000000000000000000
-    // 00000000000000000000000000000000
-    // 10011001100110011001100110011001
-    // 10111100101011101101101011001011
 
     // 0011010000100110010100100100001100010001000100010001000100010001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001001100110011001100110011001100110111100101011101101101011001011
     // decimal representation of board
@@ -119,6 +109,7 @@ contract ChessGame {
         if (_condition == 0) {
             address winner = player0 == msg.sender ? player1 : player0;
             allGames[gameId].winner = winner;
+            payable(winner).transfer(currentGameData.stakeAmount);
             emit gameEnded(gameId, currentGameData.board, winner);
             return true;
         } else if (_condition == 1) {
@@ -134,6 +125,7 @@ contract ChessGame {
                 return false;
             } else {
                 address winner = isWhiteKingPresent ? player0 : player1;
+                payable(winner).transfer(currentGameData.stakeAmount);
                 emit gameEnded(gameId, currentGameData.board, winner);
                 return true;
             }

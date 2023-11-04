@@ -2,11 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-//@todo target 3: Chess engine --> in rust lang
-//@todo target 4: zk implemetation to prove the current state of board is a result of the moves made which are captured using events offchain
 /// @title 8-by-8 Chess board, with gas optimisations
 /// @author manojkgorle
-/// @notice Chess board libray to validate & apply moves of a chess game.
+/// @notice Util library for 8-by-8 Chess board. Devs are asked to go througth the code carefully.
 
 library ChessBoard {
     /// @notice Checks, if a move is legal.
@@ -20,9 +18,6 @@ library ChessBoard {
     ) internal pure returns (bool) {
         uint256 fromIndex = move >> 6;
         uint256 toIndex = move & 0x3F;
-
-        // @todo needs testing, this logic says the right most bit as 0th bit
-        // fixed by changing fromIndex to 63 - fromIndex
 
         uint256 pieceAtFromIndex = (board >> ((63 - fromIndex) << 2)) & 0xF;
 
@@ -277,5 +272,7 @@ library ChessBoard {
             if (pieceAtIndex == 0x0110) isWhiteKingPresent = true;
             if (pieceAtIndex == 0x1110) isBlackKingPresent = true;
         }
+        isWhiteKingPresent = false;
+        isBlackKingPresent = false;
     }
 }
